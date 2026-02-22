@@ -1,5 +1,4 @@
 import type { ProductInfo } from "@/types/product";
-import { CATEGORIES } from "@/lib/seo/constants";
 
 const SYSTEM_PROMPT = `당신은 네이버 스마트스토어 SEO 전문가입니다. 사용자가 제공하는 상품 정보를 바탕으로 네이버 쇼핑 검색에 최적화된 상품명을 생성해주세요.
 
@@ -52,9 +51,7 @@ export function buildPrompt(productInfo: ProductInfo): {
 
   const parts: string[] = [];
 
-  const categoryLabel =
-    CATEGORIES.find((c) => c.value === productInfo.category)?.label || "";
-  if (categoryLabel) parts.push(`카테고리: ${categoryLabel}`);
+  if (productInfo.category) parts.push(`카테고리: ${productInfo.category}`);
   if (productInfo.brand) parts.push(`브랜드: ${productInfo.brand}`);
   if (productInfo.series) parts.push(`시리즈/모델명: ${productInfo.series}`);
   if (productInfo.productType)

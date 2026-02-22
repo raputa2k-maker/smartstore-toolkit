@@ -1,13 +1,3 @@
-export const CATEGORIES = [
-  { value: "fashion", label: "패션/의류" },
-  { value: "electronics", label: "전자기기" },
-  { value: "food", label: "식품" },
-  { value: "beauty", label: "화장품/뷰티" },
-  { value: "furniture", label: "가구/인테리어" },
-  { value: "living", label: "생활용품" },
-  { value: "etc", label: "기타" },
-] as const;
-
 export const GENDER_OPTIONS = [
   { value: "", label: "선택 안함" },
   { value: "male", label: "남성" },

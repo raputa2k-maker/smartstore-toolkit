@@ -1,14 +1,7 @@
 "use client";
 
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { CATEGORIES } from "@/lib/seo/constants";
 
 interface CategorySelectProps {
   value: string;
@@ -19,18 +12,14 @@ export function CategorySelect({ value, onChange }: CategorySelectProps) {
   return (
     <div className="space-y-2">
       <Label>카테고리</Label>
-      <Select value={value} onValueChange={onChange}>
-        <SelectTrigger>
-          <SelectValue placeholder="카테고리를 선택하세요" />
-        </SelectTrigger>
-        <SelectContent>
-          {CATEGORIES.map((cat) => (
-            <SelectItem key={cat.value} value={cat.value}>
-              {cat.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <Input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="예: 생활/건강>주방용품>잔/컵>머그"
+      />
+      <p className="text-xs text-muted-foreground">
+        스마트스토어 상품 등록 시 선택한 카테고리 경로를 붙여넣으세요
+      </p>
     </div>
   );
 }
