@@ -16,31 +16,53 @@ interface RequestBody {
   detailInput: DetailPageInput;
 }
 
+function cleanJsonString(raw: string): string {
+  // Strip BOM, zero-width chars, leading/trailing whitespace
+  let s = raw.replace(/^\uFEFF/, "").trim();
+  // Remove trailing commas before } or ]
+  s = s.replace(/,\s*([\]}])/g, "$1");
+  return s;
+}
+
 function extractJson(text: string): unknown {
-  // Try direct JSON parse first
+  const cleaned = cleanJsonString(text);
+
+  // 1) Try direct parse
   try {
-    return JSON.parse(text);
+    return JSON.parse(cleaned);
   } catch {
-    // Continue to extraction
+    // continue
   }
 
-  // Try extracting JSON from markdown code block
-  const jsonBlockMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
-  if (jsonBlockMatch) {
+  // 2) Extract from markdown code block (greedy to catch nested braces)
+  const codeBlockMatch = cleaned.match(/```(?:json)?\s*\n?([\s\S]+?)\n?\s*```/);
+  if (codeBlockMatch) {
     try {
-      return JSON.parse(jsonBlockMatch[1].trim());
+      return JSON.parse(cleanJsonString(codeBlockMatch[1]));
     } catch {
-      // Continue
+      // continue
     }
   }
 
-  // Try finding JSON object in the text
-  const jsonObjMatch = text.match(/\{[\s\S]*"sections"[\s\S]*\}/);
+  // 3) Find outermost { ... } that contains "sections"
+  const firstBrace = cleaned.indexOf("{");
+  const lastBrace = cleaned.lastIndexOf("}");
+  if (firstBrace !== -1 && lastBrace > firstBrace) {
+    const candidate = cleaned.slice(firstBrace, lastBrace + 1);
+    try {
+      return JSON.parse(cleanJsonString(candidate));
+    } catch {
+      // continue
+    }
+  }
+
+  // 4) Try matching with regex (less precise, fallback)
+  const jsonObjMatch = cleaned.match(/\{[\s\S]*"sections"[\s\S]*\}/);
   if (jsonObjMatch) {
     try {
-      return JSON.parse(jsonObjMatch[0]);
+      return JSON.parse(cleanJsonString(jsonObjMatch[0]));
     } catch {
-      // Continue
+      // continue
     }
   }
 
@@ -121,23 +143,44 @@ export async function POST(request: Request) {
         systemInstruction: systemPrompt,
         temperature: 0.7,
         topP: 0.9,
-        maxOutputTokens: 8192,
+        maxOutputTokens: 16384,
         responseMimeType: "application/json",
       },
     });
 
-    const text = response.text;
+    // ─── 응답 텍스트 추출 (SDK 버전에 따라 property 또는 method) ───
+    const text =
+      typeof response.text === "function"
+        ? (response as unknown as { text: () => string }).text()
+        : response.text;
+
     if (!text) {
+      console.error("Generate detail: empty response from Gemini");
       return NextResponse.json(
         { success: false, error: "AI 응답이 비어있습니다. 다시 시도해주세요." },
         { status: 500 }
       );
     }
 
+    console.log("Gemini raw response length:", text.length, "first 200 chars:", text.slice(0, 200));
+
     // ─── 응답 파싱 ───
-    const parsed = extractJson(text) as Partial<GeneratedPlan>;
+    let parsed: Partial<GeneratedPlan>;
+    try {
+      parsed = extractJson(text) as Partial<GeneratedPlan>;
+    } catch (parseErr) {
+      console.error("JSON extraction failed. Raw response (first 500):", text.slice(0, 500));
+      return NextResponse.json(
+        {
+          success: false,
+          error: "AI 응답에서 JSON을 추출할 수 없습니다. 다시 시도해주세요.",
+        },
+        { status: 500 }
+      );
+    }
 
     if (!parsed.sections || !Array.isArray(parsed.sections)) {
+      console.error("Invalid sections format:", typeof parsed.sections, JSON.stringify(parsed).slice(0, 300));
       return NextResponse.json(
         { success: false, error: "AI 응답 형식이 올바르지 않습니다. 다시 시도해주세요." },
         { status: 500 }
