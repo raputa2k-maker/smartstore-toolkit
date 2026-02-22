@@ -11,11 +11,13 @@ import {
   Check,
   Download,
   FileText,
+  FileDown,
   AlertCircle,
   Search,
   Smartphone,
   Briefcase,
   Ruler,
+  Loader2,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { StaggerContainer, staggerItemVariants } from "@/components/motion/stagger-container";
@@ -24,6 +26,7 @@ import { toast } from "sonner";
 export function PreviewPhase() {
   const { store } = usePhaseStore();
   const [copied, setCopied] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
 
   const generated = store.generated;
 
@@ -81,6 +84,27 @@ export function PreviewPhase() {
     toast.success("마크다운 파일이 다운로드되었습니다.");
   };
 
+  // ─── PDF 다운로드 ───
+  const handlePdfDownload = async () => {
+    setPdfLoading(true);
+    try {
+      const { generatePdf } = await import("@/lib/pdf/generate-pdf");
+      const safeName = store.seoCheck.confirmedName
+        .replace(/[<>:"/\\|?*]/g, "_")
+        .slice(0, 50);
+      await generatePdf(
+        generated.fullMarkdown,
+        `상세페이지_기획안_${safeName}.pdf`
+      );
+      toast.success("PDF 파일이 다운로드되었습니다.");
+    } catch (err) {
+      console.error("PDF generation error:", err);
+      toast.error("PDF 생성에 실패했습니다. 다시 시도해주세요.");
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
   return (
     <StaggerContainer className="space-y-4">
       {/* ─── 내보내기 버튼 영역 ─── */}
@@ -104,6 +128,19 @@ export function PreviewPhase() {
               <Button variant="outline" size="sm" onClick={handleDownload}>
                 <Download className="mr-1.5 h-4 w-4" />
                 마크다운 다운로드
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePdfDownload}
+                disabled={pdfLoading}
+              >
+                {pdfLoading ? (
+                  <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                ) : (
+                  <FileDown className="mr-1.5 h-4 w-4" />
+                )}
+                {pdfLoading ? "PDF 생성 중..." : "PDF 다운로드"}
               </Button>
             </div>
           </div>

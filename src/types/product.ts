@@ -19,7 +19,7 @@ export interface ProductInfo {
 }
 
 export interface FormState extends ProductInfo {
-  selectedModel: "gemini-2.5-flash" | "gemini-3-flash-preview";
+  selectedModel: import("@/lib/gemini/client").ModelKey;
 }
 
 export const initialFormState: FormState = {

@@ -129,14 +129,14 @@ export function buildDetailPrompt(params: BuildDetailPromptParams): {
     `사이즈: ${formatValue(productInfo.size)}`,
     `타겟 성별: ${formatValue(productInfo.targetGender)}`,
     `추가 속성: ${formatValue(productInfo.additionalAttributes)}`,
-    `핵심 키워드: ${productInfo.keywords.length > 0 ? productInfo.keywords.join(", ") : "미입력 - AI가 추천해주세요"}`,
+    `핵심 키워드: ${productInfo.keywords?.length > 0 ? productInfo.keywords.join(", ") : "미입력 - AI가 추천해주세요"}`,
     `주문제작 여부: ${productInfo.isCustomOrder ? "예" : "아니오"}`,
   ];
 
-  if (productInfo.isCustomOrder) {
+  if (productInfo.isCustomOrder && productInfo.customOrderDetails) {
     const details = productInfo.customOrderDetails;
-    productParts.push(`제작 방식: ${details.methods.length > 0 ? details.methods.join(", ") : "미입력"}`);
-    productParts.push(`커스텀 옵션: ${details.optionTypes.length > 0 ? details.optionTypes.join(", ") : "미입력"}`);
+    productParts.push(`제작 방식: ${details.methods?.length > 0 ? details.methods.join(", ") : "미입력"}`);
+    productParts.push(`커스텀 옵션: ${details.optionTypes?.length > 0 ? details.optionTypes.join(", ") : "미입력"}`);
   }
 
   // ─── 업종 타입 ───
@@ -149,7 +149,7 @@ export function buildDetailPrompt(params: BuildDetailPromptParams): {
     general: "일반",
   };
   productParts.push("");
-  productParts.push(`## 업종 타입: ${industryLabels[detailInput.industryType] || detailInput.industryType}`);
+  productParts.push(`## 업종 타입: ${industryLabels[detailInput?.industryType] || detailInput?.industryType || "일반"}`);
 
   // ─── 섹션별 입력 데이터 ───
   const sectionParts: string[] = ["", "## 섹션별 입력 데이터"];
@@ -157,12 +157,12 @@ export function buildDetailPrompt(params: BuildDetailPromptParams): {
   // S0: 프리 헤더
   sectionParts.push("");
   sectionParts.push("### S0: 프리 헤더");
-  sectionParts.push(`활성화: ${detailInput.s0.enabled ? "예" : "아니오"}`);
-  if (detailInput.s0.enabled) {
-    sectionParts.push(`프로모션 문구: ${formatValue(detailInput.s0.promotionText)}`);
-    sectionParts.push(`할인율: ${formatValue(detailInput.s0.discountRate)}`);
-    sectionParts.push(`마감일: ${formatValue(detailInput.s0.deadline)}`);
-    sectionParts.push(`쿠폰 정보: ${formatValue(detailInput.s0.couponInfo)}`);
+  sectionParts.push(`활성화: ${detailInput.s0?.enabled ? "예" : "아니오"}`);
+  if (detailInput.s0?.enabled) {
+    sectionParts.push(`프로모션 문구: ${formatValue(detailInput.s0?.promotionText)}`);
+    sectionParts.push(`할인율: ${formatValue(detailInput.s0?.discountRate)}`);
+    sectionParts.push(`마감일: ${formatValue(detailInput.s0?.deadline)}`);
+    sectionParts.push(`쿠폰 정보: ${formatValue(detailInput.s0?.couponInfo)}`);
   }
 
   // S1: 후킹 섹션
@@ -172,15 +172,15 @@ export function buildDetailPrompt(params: BuildDetailPromptParams): {
     problem: "문제인식형", result: "결과제시형", scarcity: "희소성형",
     authority: "권위형", story: "스토리형",
   };
-  sectionParts.push(`후킹 전략: ${hookingLabels[detailInput.s1.hookingType] || detailInput.s1.hookingType}`);
-  sectionParts.push(`메인 카피: ${formatValue(detailInput.s1.mainCopy)}`);
-  sectionParts.push(`서브 카피: ${formatValue(detailInput.s1.subCopy)}`);
-  sectionParts.push(`히어로 이미지 설명: ${formatValue(detailInput.s1.heroImageDescription)}`);
+  sectionParts.push(`후킹 전략: ${hookingLabels[detailInput.s1?.hookingType] || detailInput.s1?.hookingType || "미입력"}`);
+  sectionParts.push(`메인 카피: ${formatValue(detailInput.s1?.mainCopy)}`);
+  sectionParts.push(`서브 카피: ${formatValue(detailInput.s1?.subCopy)}`);
+  sectionParts.push(`히어로 이미지 설명: ${formatValue(detailInput.s1?.heroImageDescription)}`);
 
   // S2: 핵심 베네핏
   sectionParts.push("");
   sectionParts.push("### S2: 핵심 베네핏");
-  if (detailInput.s2.benefits.length > 0 && detailInput.s2.benefits.some((b) => b.headline.trim())) {
+  if (detailInput.s2?.benefits?.length > 0 && detailInput.s2.benefits.some((b) => b.headline?.trim())) {
     detailInput.s2.benefits.forEach((b, i) => {
       sectionParts.push(`베네핏 ${i + 1}: ${formatValue(b.headline)} - ${formatValue(b.description)} (아이콘: ${formatValue(b.iconKeyword)})`);
     });
@@ -191,19 +191,19 @@ export function buildDetailPrompt(params: BuildDetailPromptParams): {
   // S3: 사회적 증거 1차
   sectionParts.push("");
   sectionParts.push("### S3: 사회적 증거 1차");
-  sectionParts.push(`판매 수량: ${formatValue(detailInput.s3.salesCount)}`);
-  sectionParts.push(`평점: ${formatValue(detailInput.s3.rating)}`);
-  sectionParts.push(`랭킹 정보: ${formatValue(detailInput.s3.rankingInfo)}`);
-  sectionParts.push(`수상 내역: ${detailInput.s3.awards.length > 0 ? detailInput.s3.awards.join(", ") : "미입력 - AI가 추천해주세요"}`);
-  sectionParts.push(`인증: ${detailInput.s3.certifications.length > 0 ? detailInput.s3.certifications.join(", ") : "미입력 - AI가 추천해주세요"}`);
-  sectionParts.push(`미디어 노출: ${detailInput.s3.mediaExposure.length > 0 ? detailInput.s3.mediaExposure.join(", ") : "미입력 - AI가 추천해주세요"}`);
+  sectionParts.push(`판매 수량: ${formatValue(detailInput.s3?.salesCount)}`);
+  sectionParts.push(`평점: ${formatValue(detailInput.s3?.rating)}`);
+  sectionParts.push(`랭킹 정보: ${formatValue(detailInput.s3?.rankingInfo)}`);
+  sectionParts.push(`수상 내역: ${detailInput.s3?.awards?.length > 0 ? detailInput.s3.awards.join(", ") : "미입력 - AI가 추천해주세요"}`);
+  sectionParts.push(`인증: ${detailInput.s3?.certifications?.length > 0 ? detailInput.s3.certifications.join(", ") : "미입력 - AI가 추천해주세요"}`);
+  sectionParts.push(`미디어 노출: ${detailInput.s3?.mediaExposure?.length > 0 ? detailInput.s3.mediaExposure.join(", ") : "미입력 - AI가 추천해주세요"}`);
 
   // S4: 상품 상세 설명
   sectionParts.push("");
   sectionParts.push("### S4: 상품 상세 설명");
-  sectionParts.push(`소재 설명: ${formatValue(detailInput.s4.materialDescription)}`);
-  sectionParts.push(`사용 단계: ${detailInput.s4.usageSteps.filter((s) => s.trim()).length > 0 ? detailInput.s4.usageSteps.filter((s) => s.trim()).join(" → ") : "미입력 - AI가 추천해주세요"}`);
-  if (detailInput.s4.comparisonPoints.length > 0) {
+  sectionParts.push(`소재 설명: ${formatValue(detailInput.s4?.materialDescription)}`);
+  sectionParts.push(`사용 단계: ${detailInput.s4?.usageSteps?.filter((s) => s.trim()).length > 0 ? detailInput.s4.usageSteps.filter((s) => s.trim()).join(" → ") : "미입력 - AI가 추천해주세요"}`);
+  if (detailInput.s4?.comparisonPoints?.length > 0) {
     sectionParts.push("비교 포인트:");
     detailInput.s4.comparisonPoints.forEach((cp) => {
       sectionParts.push(`  - ${cp.attribute}: 우리 ${cp.ours} vs 타사 ${cp.theirs}`);
@@ -211,13 +211,13 @@ export function buildDetailPrompt(params: BuildDetailPromptParams): {
   } else {
     sectionParts.push("비교 포인트: 미입력 - AI가 추천해주세요");
   }
-  sectionParts.push(`상세 이미지 설명: ${formatValue(detailInput.s4.detailImageDescription)}`);
+  sectionParts.push(`상세 이미지 설명: ${formatValue(detailInput.s4?.detailImageDescription)}`);
 
   // S5: 주문제작 전용
   if (productInfo.isCustomOrder) {
     sectionParts.push("");
     sectionParts.push("### S5: 주문제작 전용 (이 상품은 주문제작 상품이므로 반드시 S5를 생성하세요)");
-    if (detailInput.s5.processSteps.length > 0 && detailInput.s5.processSteps.some((s) => s.step.trim())) {
+    if (detailInput.s5?.processSteps?.length > 0 && detailInput.s5.processSteps.some((s) => s.step?.trim())) {
       sectionParts.push("제작 과정:");
       detailInput.s5.processSteps.forEach((ps, i) => {
         sectionParts.push(`  ${i + 1}. ${formatValue(ps.step)} (${formatValue(ps.duration)}) - ${formatValue(ps.description)}`);
@@ -225,25 +225,25 @@ export function buildDetailPrompt(params: BuildDetailPromptParams): {
     } else {
       sectionParts.push("제작 과정: 미입력 - AI가 추천해주세요");
     }
-    if (detailInput.s5.customOptions.length > 0) {
+    if (detailInput.s5?.customOptions?.length > 0) {
       sectionParts.push("커스텀 옵션:");
       detailInput.s5.customOptions.forEach((opt) => {
-        sectionParts.push(`  - ${formatValue(opt.type)}: ${opt.options.join(", ")} (${formatValue(opt.note)})`);
+        sectionParts.push(`  - ${formatValue(opt.type)}: ${opt.options?.join(", ") || "미입력"} (${formatValue(opt.note)})`);
       });
     } else {
       sectionParts.push("커스텀 옵션: 미입력 - AI가 추천해주세요");
     }
-    const rp = detailInput.s5.revisionPolicy;
-    sectionParts.push(`수정 정책: 무료 수정 ${rp.freeRevisions}회, 추가 비용 ${formatValue(rp.extraCost)}, 범위 ${formatValue(rp.scope)}, 기한 ${formatValue(rp.deadline)}`);
-    const pp = detailInput.s5.productionPeriod;
-    sectionParts.push(`제작 기간: 일반 ${formatValue(pp.normalDays)}, 급행 ${formatValue(pp.rushDays)} (추가비용 ${formatValue(pp.rushExtraCost)}), 성수기 ${formatValue(pp.peakSeasonNote)}`);
-    sectionParts.push(`스토리텔링: ${formatValue(detailInput.s5.storytelling)}`);
+    const rp = detailInput.s5?.revisionPolicy;
+    sectionParts.push(`수정 정책: 무료 수정 ${rp?.freeRevisions ?? "미입력"}회, 추가 비용 ${formatValue(rp?.extraCost)}, 범위 ${formatValue(rp?.scope)}, 기한 ${formatValue(rp?.deadline)}`);
+    const pp = detailInput.s5?.productionPeriod;
+    sectionParts.push(`제작 기간: 일반 ${formatValue(pp?.normalDays)}, 급행 ${formatValue(pp?.rushDays)} (추가비용 ${formatValue(pp?.rushExtraCost)}), 성수기 ${formatValue(pp?.peakSeasonNote)}`);
+    sectionParts.push(`스토리텔링: ${formatValue(detailInput.s5?.storytelling)}`);
   }
 
   // S6: 리뷰
   sectionParts.push("");
   sectionParts.push("### S6: 사회적 증거 2차 (리뷰)");
-  if (detailInput.s6.highlightReviews.length > 0) {
+  if (detailInput.s6?.highlightReviews?.length > 0) {
     sectionParts.push("하이라이트 리뷰:");
     detailInput.s6.highlightReviews.forEach((r) => {
       sectionParts.push(`  - ${r.reviewer} (${r.rating}점, ${formatValue(r.option)}): ${r.content}`);
@@ -251,13 +251,13 @@ export function buildDetailPrompt(params: BuildDetailPromptParams): {
   } else {
     sectionParts.push("하이라이트 리뷰: 미입력 - AI가 추천해주세요");
   }
-  sectionParts.push(`총 리뷰 수: ${formatValue(detailInput.s6.totalReviewCount)}`);
-  sectionParts.push(`평균 평점: ${formatValue(detailInput.s6.averageRating)}`);
+  sectionParts.push(`총 리뷰 수: ${formatValue(detailInput.s6?.totalReviewCount)}`);
+  sectionParts.push(`평균 평점: ${formatValue(detailInput.s6?.averageRating)}`);
 
   // S7: FAQ
   sectionParts.push("");
   sectionParts.push("### S7: FAQ");
-  if (detailInput.s7.faqs.length > 0 && detailInput.s7.faqs.some((f) => f.question.trim())) {
+  if (detailInput.s7?.faqs?.length > 0 && detailInput.s7.faqs.some((f) => f.question?.trim())) {
     detailInput.s7.faqs.forEach((f) => {
       sectionParts.push(`  - [${formatValue(f.category)}] Q: ${formatValue(f.question)} A: ${formatValue(f.answer)}`);
     });
@@ -268,23 +268,23 @@ export function buildDetailPrompt(params: BuildDetailPromptParams): {
   // S8: 배송/교환/환불
   sectionParts.push("");
   sectionParts.push("### S8: 배송/교환/환불");
-  sectionParts.push(`배송 소요일: ${formatValue(detailInput.s8.deliveryDays)}`);
-  sectionParts.push(`무료 배송 조건: ${formatValue(detailInput.s8.freeShippingCondition)}`);
-  sectionParts.push(`배송비: ${formatValue(detailInput.s8.shippingCost)}`);
-  sectionParts.push(`교환 정책: ${formatValue(detailInput.s8.exchangePolicy)}`);
-  sectionParts.push(`환불 정책: ${formatValue(detailInput.s8.refundPolicy)}`);
-  sectionParts.push(`하자 정책: ${formatValue(detailInput.s8.defectPolicy)}`);
+  sectionParts.push(`배송 소요일: ${formatValue(detailInput.s8?.deliveryDays)}`);
+  sectionParts.push(`무료 배송 조건: ${formatValue(detailInput.s8?.freeShippingCondition)}`);
+  sectionParts.push(`배송비: ${formatValue(detailInput.s8?.shippingCost)}`);
+  sectionParts.push(`교환 정책: ${formatValue(detailInput.s8?.exchangePolicy)}`);
+  sectionParts.push(`환불 정책: ${formatValue(detailInput.s8?.refundPolicy)}`);
+  sectionParts.push(`하자 정책: ${formatValue(detailInput.s8?.defectPolicy)}`);
   if (productInfo.isCustomOrder) {
-    sectionParts.push(`주문제작 반품 안내: ${formatValue(detailInput.s8.customOrderReturnNote)}`);
+    sectionParts.push(`주문제작 반품 안내: ${formatValue(detailInput.s8?.customOrderReturnNote)}`);
   }
 
   // S9: 브랜드 스토리
   sectionParts.push("");
   sectionParts.push("### S9: 브랜드 스토리");
-  sectionParts.push(`브랜드 미션: ${formatValue(detailInput.s9.brandMission)}`);
-  sectionParts.push(`브랜드 스토리: ${formatValue(detailInput.s9.brandStory)}`);
-  sectionParts.push(`클로징 카피: ${formatValue(detailInput.s9.closingCopy)}`);
-  sectionParts.push(`CTA 텍스트: ${formatValue(detailInput.s9.ctaText)}`);
+  sectionParts.push(`브랜드 미션: ${formatValue(detailInput.s9?.brandMission)}`);
+  sectionParts.push(`브랜드 스토리: ${formatValue(detailInput.s9?.brandStory)}`);
+  sectionParts.push(`클로징 카피: ${formatValue(detailInput.s9?.closingCopy)}`);
+  sectionParts.push(`CTA 텍스트: ${formatValue(detailInput.s9?.ctaText)}`);
 
   // ─── 최종 사용자 프롬프트 조합 ───
   const userPrompt = `다음 상품 정보와 입력 데이터를 바탕으로 네이버 스마트스토어 상세페이지 기획안을 생성해주세요.

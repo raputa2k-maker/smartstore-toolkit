@@ -61,6 +61,21 @@ export function AiGeneratePhase() {
           detailInput: store.detailInput,
         }),
       });
+
+      if (!res.ok) {
+        // Try to parse error JSON, fallback to status text
+        let errorMsg = `서버 오류 (${res.status})`;
+        try {
+          const errData = await res.json();
+          if (errData.error) errorMsg = errData.error;
+        } catch {
+          // Response was not JSON (e.g. HTML error page)
+          errorMsg = `서버 오류가 발생했습니다. (HTTP ${res.status}: ${res.statusText})`;
+        }
+        setError(errorMsg);
+        return;
+      }
+
       const data = await res.json();
 
       if (!data.success) {
@@ -69,8 +84,14 @@ export function AiGeneratePhase() {
       }
 
       setGeneratedPlan(data.data);
-    } catch {
-      setError("네트워크 오류가 발생했습니다. 인터넷 연결을 확인해주세요.");
+    } catch (err) {
+      console.error("Generate detail fetch error:", err);
+      const message = err instanceof Error ? err.message : String(err);
+      if (message.includes("Failed to fetch") || message.includes("NetworkError") || message.includes("fetch")) {
+        setError("네트워크 오류가 발생했습니다. 인터넷 연결을 확인해주세요.");
+      } else {
+        setError(`오류가 발생했습니다: ${message}`);
+      }
     } finally {
       setLoading(false);
     }

@@ -29,15 +29,18 @@ export function PhaseProgress() {
 
   return (
     <div className="w-full">
-      {/* Desktop */}
-      <div className="hidden md:flex items-center justify-between">
+      {/* Desktop — Grid로 균등 배치, 라인은 absolute로 원 중심 정렬 */}
+      <div
+        className="hidden md:grid"
+        style={{ gridTemplateColumns: `repeat(${configs.length}, 1fr)` }}
+      >
         {configs.map((config, idx) => {
           const status = getStatus(config.id);
           const isCurrent = config.id === currentPhaseId;
           const Icon = ICON_MAP[config.icon] ?? Settings;
 
           return (
-            <div key={config.id} className="flex items-center flex-1 last:flex-none">
+            <div key={config.id} className="relative flex flex-col items-center">
               <button
                 onClick={() => goTo(config.id)}
                 disabled={status === "locked"}
@@ -76,8 +79,12 @@ export function PhaseProgress() {
                 </span>
               </button>
 
+              {/* 연결 라인: 현재 원의 오른쪽 끝 → 다음 원의 왼쪽 끝 */}
               {idx < configs.length - 1 && (
-                <div className="relative flex-1 h-0.5 mx-2 mt-[-18px]">
+                <div
+                  className="absolute h-0.5"
+                  style={{ top: 17, left: "calc(50% + 18px)", right: "calc(-50% + 18px)" }}
+                >
                   <div className={cn("absolute inset-0", status === "completed" ? "bg-primary/40" : "bg-border")} />
                   <motion.div
                     className="absolute inset-0 bg-primary/40 h-full origin-left"

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createGeminiClient, MODEL_MAP } from "@/lib/gemini/client";
+import { callGemini, MODEL_MAP } from "@/lib/gemini/client";
 import type { ModelKey } from "@/lib/gemini/client";
 import { buildDetailPrompt } from "@/lib/gemini/detail-prompt-builder";
 import type { ProductInfo } from "@/types/product";
@@ -17,24 +17,84 @@ interface RequestBody {
 }
 
 function cleanJsonString(raw: string): string {
-  // Strip BOM, zero-width chars, leading/trailing whitespace
   let s = raw.replace(/^\uFEFF/, "").trim();
-  // Remove trailing commas before } or ]
   s = s.replace(/,\s*([\]}])/g, "$1");
+  return s;
+}
+
+/**
+ * 잘린(truncated) JSON 문자열을 복구하는 함수
+ * 열린 브래킷/브레이스를 닫아서 파싱 가능하게 만듦
+ */
+function repairTruncatedJson(text: string): string {
+  let s = text.trim();
+
+  // 문자열 내부에서 잘렸으면 문자열 닫기
+  let inString = false;
+  let escape = false;
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i];
+    if (escape) {
+      escape = false;
+      continue;
+    }
+    if (ch === "\\") {
+      escape = true;
+      continue;
+    }
+    if (ch === '"') {
+      inString = !inString;
+    }
+  }
+  if (inString) {
+    s += '"';
+  }
+
+  // 마지막 불완전한 key-value 쌍 제거 (예: ,"key": 또는 ,"key": "val 등)
+  // 먼저 trailing comma 제거
+  s = s.replace(/,\s*$/, "");
+
+  // 열린 브래킷/브레이스 닫기
+  const stack: string[] = [];
+  inString = false;
+  escape = false;
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i];
+    if (escape) {
+      escape = false;
+      continue;
+    }
+    if (ch === "\\") {
+      escape = true;
+      continue;
+    }
+    if (ch === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (inString) continue;
+    if (ch === "{") stack.push("}");
+    else if (ch === "[") stack.push("]");
+    else if (ch === "}" || ch === "]") stack.pop();
+  }
+
+  // 역순으로 닫기
+  while (stack.length > 0) {
+    s += stack.pop();
+  }
+
   return s;
 }
 
 function extractJson(text: string): unknown {
   const cleaned = cleanJsonString(text);
 
-  // 1) Try direct parse
   try {
     return JSON.parse(cleaned);
   } catch {
     // continue
   }
 
-  // 2) Extract from markdown code block (greedy to catch nested braces)
   const codeBlockMatch = cleaned.match(/```(?:json)?\s*\n?([\s\S]+?)\n?\s*```/);
   if (codeBlockMatch) {
     try {
@@ -44,7 +104,6 @@ function extractJson(text: string): unknown {
     }
   }
 
-  // 3) Find outermost { ... } that contains "sections"
   const firstBrace = cleaned.indexOf("{");
   const lastBrace = cleaned.lastIndexOf("}");
   if (firstBrace !== -1 && lastBrace > firstBrace) {
@@ -56,11 +115,20 @@ function extractJson(text: string): unknown {
     }
   }
 
-  // 4) Try matching with regex (less precise, fallback)
   const jsonObjMatch = cleaned.match(/\{[\s\S]*"sections"[\s\S]*\}/);
   if (jsonObjMatch) {
     try {
       return JSON.parse(cleanJsonString(jsonObjMatch[0]));
+    } catch {
+      // continue
+    }
+  }
+
+  // 잘린 JSON 복구 시도
+  if (cleaned.trimStart().startsWith("{")) {
+    try {
+      const repaired = repairTruncatedJson(cleaned);
+      return JSON.parse(repaired);
     } catch {
       // continue
     }
@@ -108,7 +176,6 @@ export async function POST(request: Request) {
     const body: RequestBody = await request.json();
     const { apiKey, model, productInfo, confirmedName, seoScore, detailInput } = body;
 
-    // ─── 필수값 검증 ───
     if (!apiKey) {
       return NextResponse.json(
         { success: false, error: "API 키를 입력해주세요." },
@@ -123,11 +190,8 @@ export async function POST(request: Request) {
       );
     }
 
-    // ─── Gemini 클라이언트 생성 ───
     const modelId = MODEL_MAP[model] || MODEL_MAP["gemini-2.5-flash"];
-    const ai = createGeminiClient(apiKey);
 
-    // ─── 프롬프트 생성 ───
     const { systemPrompt, userPrompt } = buildDetailPrompt({
       productInfo,
       confirmedName,
@@ -135,59 +199,50 @@ export async function POST(request: Request) {
       detailInput,
     });
 
-    // ─── Gemini API 호출 ───
-    const response = await ai.models.generateContent({
+    const response = await callGemini({
+      apiKey,
       model: modelId,
-      contents: userPrompt,
+      systemPrompt,
+      userPrompt,
       config: {
-        systemInstruction: systemPrompt,
         temperature: 0.7,
         topP: 0.9,
-        maxOutputTokens: 16384,
+        maxOutputTokens: 65536,
         responseMimeType: "application/json",
       },
     });
 
-    // ─── 응답 텍스트 추출 (SDK 버전에 따라 property 또는 method) ───
-    const text =
-      typeof response.text === "function"
-        ? (response as unknown as { text: () => string }).text()
-        : response.text;
+    const text = response.text;
+
+    if (response.finishReason === "MAX_TOKENS") {
+      console.warn("Warning: Gemini response was truncated (MAX_TOKENS). Length:", text?.length);
+    }
 
     if (!text) {
-      console.error("Generate detail: empty response from Gemini");
       return NextResponse.json(
         { success: false, error: "AI 응답이 비어있습니다. 다시 시도해주세요." },
         { status: 500 }
       );
     }
 
-    console.log("Gemini raw response length:", text.length, "first 200 chars:", text.slice(0, 200));
-
-    // ─── 응답 파싱 ───
     let parsed: Partial<GeneratedPlan>;
     try {
       parsed = extractJson(text) as Partial<GeneratedPlan>;
-    } catch (parseErr) {
-      console.error("JSON extraction failed. Raw response (first 500):", text.slice(0, 500));
+    } catch {
+      console.error("JSON extraction failed. Response length:", text.length);
       return NextResponse.json(
-        {
-          success: false,
-          error: "AI 응답에서 JSON을 추출할 수 없습니다. 다시 시도해주세요.",
-        },
+        { success: false, error: "AI 응답에서 JSON을 추출할 수 없습니다. 다시 시도해주세요." },
         { status: 500 }
       );
     }
 
     if (!parsed.sections || !Array.isArray(parsed.sections)) {
-      console.error("Invalid sections format:", typeof parsed.sections, JSON.stringify(parsed).slice(0, 300));
       return NextResponse.json(
         { success: false, error: "AI 응답 형식이 올바르지 않습니다. 다시 시도해주세요." },
         { status: 500 }
       );
     }
 
-    // ─── fullMarkdown 생성 (AI가 제공하지 않았거나 비어있으면 직접 생성) ───
     const fullMarkdown = parsed.fullMarkdown?.trim()
       ? parsed.fullMarkdown
       : buildFullMarkdown(parsed.sections);
@@ -209,34 +264,13 @@ export async function POST(request: Request) {
   } catch (error: unknown) {
     const err = error as { status?: number; message?: string };
 
-    if (err.status === 401 || err.message?.includes("API key")) {
-      return NextResponse.json(
-        { success: false, error: "API 키가 유효하지 않습니다. 확인 후 다시 시도해주세요." },
-        { status: 401 }
-      );
-    }
-
-    if (err.status === 429) {
-      return NextResponse.json(
-        { success: false, error: "요청 한도를 초과했습니다. 잠시 후 다시 시도해주세요." },
-        { status: 429 }
-      );
-    }
-
-    if (err.status === 503) {
-      return NextResponse.json(
-        { success: false, error: "AI 서버가 바쁩니다. 잠시 후 다시 시도해주세요." },
-        { status: 503 }
-      );
-    }
-
     console.error("Generate detail error:", err.message || error);
     return NextResponse.json(
       {
         success: false,
         error: err.message || "상세페이지 기획안 생성 중 오류가 발생했습니다.",
       },
-      { status: 500 }
+      { status: (err.status && err.status >= 400) ? err.status : 500 }
     );
   }
 }
