@@ -92,10 +92,11 @@ export function PreviewPhase() {
       const safeName = store.seoCheck.confirmedName
         .replace(/[<>:"/\\|?*]/g, "_")
         .slice(0, 50);
-      await generatePdf(
-        generated.fullMarkdown,
-        `상세페이지_기획안_${safeName}.pdf`
-      );
+      await generatePdf({
+        plan: generated,
+        confirmedName: store.seoCheck.confirmedName,
+        filename: `상세페이지_기획안_${safeName}.pdf`,
+      });
       toast.success("PDF 파일이 다운로드되었습니다.");
     } catch (err) {
       console.error("PDF generation error:", err);
