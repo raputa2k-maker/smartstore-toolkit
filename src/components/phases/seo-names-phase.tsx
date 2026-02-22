@@ -41,6 +41,23 @@ export function SeoNamesPhase() {
           productInfo: store.productInfo,
         }),
       });
+
+      if (!res.ok) {
+        let errorMsg = `서버 오류 (${res.status})`;
+        try {
+          const errData = await res.json();
+          if (errData.error) errorMsg = errData.error;
+        } catch {
+          if (res.status === 504) {
+            errorMsg = "AI 응답 시간이 초과되었습니다. 더 빠른 모델(Flash-Lite, Flash)을 사용해보세요.";
+          } else {
+            errorMsg = `서버 오류가 발생했습니다. (HTTP ${res.status}: ${res.statusText})`;
+          }
+        }
+        setError(errorMsg);
+        return;
+      }
+
       const data = await res.json();
 
       if (!data.success) {
@@ -48,8 +65,14 @@ export function SeoNamesPhase() {
         return;
       }
       setSeoResults(data.data.recommendations);
-    } catch {
-      setError("네트워크 오류가 발생했습니다.");
+    } catch (err) {
+      console.error("Generate fetch error:", err);
+      const message = err instanceof Error ? err.message : String(err);
+      if (message.includes("Failed to fetch") || message.includes("NetworkError") || message.includes("fetch")) {
+        setError("네트워크 오류가 발생했습니다. 인터넷 연결을 확인해주세요.");
+      } else {
+        setError(`오류가 발생했습니다: ${message}`);
+      }
     } finally {
       setLoading(false);
     }

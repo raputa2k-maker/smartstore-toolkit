@@ -69,8 +69,11 @@ export function AiGeneratePhase() {
           const errData = await res.json();
           if (errData.error) errorMsg = errData.error;
         } catch {
-          // Response was not JSON (e.g. HTML error page)
-          errorMsg = `서버 오류가 발생했습니다. (HTTP ${res.status}: ${res.statusText})`;
+          if (res.status === 504) {
+            errorMsg = "AI 응답 시간이 초과되었습니다. 더 빠른 모델(Flash-Lite, Flash)을 사용하거나 다시 시도해주세요.";
+          } else {
+            errorMsg = `서버 오류가 발생했습니다. (HTTP ${res.status}: ${res.statusText})`;
+          }
         }
         setError(errorMsg);
         return;
