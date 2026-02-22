@@ -47,9 +47,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "스마트스토어 SEO 상품명 생성기",
+  title: "스마트스토어 올인원 기획 도구",
   description:
-    "네이버 스마트스토어 SEO 가이드라인 기반 최적화 상품명을 AI가 추천해드립니다.",
+    "SEO 최적화 상품명 생성부터 전문가급 상세페이지 기획안까지, AI가 한번에 만들어드립니다.",
 };
 
 export default function RootLayout({

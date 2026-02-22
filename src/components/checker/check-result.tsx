@@ -1,5 +1,8 @@
+"use client";
+
 import type { ValidationResult } from "@/types/seo";
 import { CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
+import { motion } from "framer-motion";
 
 interface CheckResultProps {
   results: ValidationResult[];
@@ -31,8 +34,11 @@ export function CheckResult({ results }: CheckResultProps) {
 
       <div className="space-y-2">
         {results.map((result, idx) => (
-          <div
+          <motion.div
             key={idx}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25, delay: idx * 0.06, ease: "easeOut" }}
             className={`flex items-start gap-2.5 rounded-md px-3 py-2.5 text-sm ${
               result.passed
                 ? result.severity === "warning"
@@ -77,7 +83,7 @@ export function CheckResult({ results }: CheckResultProps) {
                 </div>
               )}
             </div>
-          </div>
+          </motion.div>
         ))}
       </div>
     </div>

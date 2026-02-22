@@ -96,3 +96,34 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* ─── 미니멀 모션 폴리시 ─── */
+@layer components {
+  /* 카드 호버 */
+  .border.rounded-xl,
+  [data-slot="card"] {
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+  }
+  .border.rounded-xl:hover,
+  [data-slot="card"]:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  }
+
+  /* 버튼 active 피드백 */
+  button:active:not(:disabled),
+  [role="button"]:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+
+  /* 인풋 포커스 트랜지션 */
+  input,
+  textarea,
+  select {
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  /* 배지 호버 */
+  [data-slot="badge"] {
+    transition: background-color 0.15s ease;
+  }
+}
